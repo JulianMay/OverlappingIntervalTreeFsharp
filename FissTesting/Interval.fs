@@ -1,35 +1,31 @@
 ﻿module Interval
 
-    type Node<'a , 'v when 'a : comparison>(f : 'a, t : 'a, v : 'v list, c : Node<'a,'v> list)  =
-        do if (f>=t) then failwithf "'from' must be less than 'to'"
-        member x.From = f
-        member x.To = t
-        member x.Values = v
-        member x.ChildNodes = c
-        
-        member x.IsWithinPeriodOf (n:Node<'a, _>) = x.From >= n.From && x.To <= n.To
-        member x.IsSamePeriodAs (n:Node<'a, _>) = x.From = n.From && x.To = n.To
-        member x.IsIntersecting (n:Node<'a, _>) = (x.From < n.From && n.From < x.To) || (x.From < n.To && n.To < x.To)
-        
-        member x.WithChildNode (n:Node<'a,'v>) = Node(x.From,x.To,x.Values,n::x.ChildNodes)
+    type Node<'a , 'v when 'a : comparison> = {From : 'a; To : 'a; Values : 'v list; ChildNodes : Node<'a,'v> list}        
+    let IsWithinPeriodOf (x:Node<'a, _>) (n:Node<'a, _>) = x.From >= n.From && x.To <= n.To
+    let IsSamePeriodAs (x:Node<'a, _>) (n:Node<'a, _>) = x.From = n.From && x.To = n.To
+    let IsIntersecting (x:Node<'a, _>) (n:Node<'a, _>) = (x.From < n.From && n.From < x.To) || (x.From < n.To && n.To < x.To)        
 
     let rec CountChildNodes (n: Node<'a,'v>) : int =
         n.ChildNodes 
             |> List.map (fun c -> if c.ChildNodes.Length = 0 then 1 else 1 + CountChildNodes c)
             |> List.sum 
 
-
     let least a b = if a < b then a else b
     let greatest a b = if a > b then a else b   
 
+    let ValidateNodeInterval (n:Node<'a,'v>) = compare n.From n.To = -1
+
     let Compound (a:Node<'a,'v>) (b:Node<'a,'v>) =     
-        if (a.IsSamePeriodAs b) then Node(a.From, a.To, List.append a.Values b.Values, [])
-        else if (a.IsWithinPeriodOf b) then b.WithChildNode a
-        else if (b.IsWithinPeriodOf a) then a.WithChildNode b
-        else Node(least a.From b.From, greatest a.To b.To, [], [a;b])
+        if (IsSamePeriodAs a b) then {a with Values = List.append a.Values b.Values}
+        else if (IsWithinPeriodOf a b) then { b with ChildNodes = a::b.ChildNodes}
+        else if (IsWithinPeriodOf b a) then { a with ChildNodes = b::a.ChildNodes}
+        else {From=least a.From b.From; To = greatest a.To b.To; Values = []; ChildNodes = [a;b]}
 
 
     type Tree<'a , 'v when 'a : comparison>(r : Option<Node<'a,'v>>) =
+        do if (r.IsSome && not(ValidateNodeInterval r.Value)) 
+            then invalidArg "r" "'From' must be earlier than 'To'"
+
         member x.RootNode = r
 
         member x.CountNodes = 
@@ -38,7 +34,11 @@
                 | None -> 0
 
     let TreeWithNodeAdded (t:Tree<'a,'v>) (n:Node<'a,'v>) = 
-        if t.RootNode.IsNone then Tree(Some n)
+        if not(ValidateNodeInterval n) 
+            then invalidArg "r" "'From' must be earlier than 'To'"
+        if t.RootNode.IsNone then 
+            Tree(Some n)
         else 
             let newRoot = Compound t.RootNode.Value n
             Tree(Some newRoot)
+            

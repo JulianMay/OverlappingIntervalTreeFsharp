@@ -9,7 +9,7 @@ module IntervalTests =
 
     let dt (y,m,d) = Date(y,m,d)
     let noChildren = List.empty<Node<Date,string>>
-    let nn (d1, d2, v, childs) = Node<Date,string>(d1,d2,v,childs)
+    let nn (d1, d2, v, childs) = {From =d1; To=d2; Values=v; ChildNodes=childs}
     let emptyTree = Tree<Date,string>(None)
 
     [<Test>]
@@ -20,6 +20,19 @@ module IntervalTests =
         let sut = nn(dt(1, 1, 1), dt(2, 2, 2), ["sut"], [b1;b2])
 
         Assert.AreEqual(3, CountChildNodes sut)
+
+    [<Test>]
+    let ``Node cannot be part of tree when From is greater than To``() =
+        //gave up constructor for record type, so now we can have invalid nodes
+        let invalid = nn(dt(2017,1,10),dt(2017,1,8), [], [])
+        printfn "TEST: %i" (compare invalid.From invalid.To)
+
+        try
+            let t = Interval.Tree(Some invalid)
+            Assert.Fail "Apperently it could?"
+        with
+            | :? AssertionException as ae -> raise ae;
+            | _ -> ();
 
     [<Test>]
     let ``Interval.Tree can count its nodes``() =
