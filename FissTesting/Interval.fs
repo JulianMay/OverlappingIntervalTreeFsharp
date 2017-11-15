@@ -2,6 +2,7 @@
 
     type Node<'a , 'v when 'a : comparison> = {From : 'a; To : 'a; Values : 'v list; ChildNodes : Node<'a,'v> list}        
     let IsWithinPeriodOf (x:Node<'a, _>) (n:Node<'a, _>) = x.From >= n.From && x.To <= n.To
+    let IsWithin (x:Node<'a, _>) ((f:'a),(t:'a)) = x.From >= f && x.To <= t
     let IsSamePeriodAs (x:Node<'a, _>) (n:Node<'a, _>) = x.From = n.From && x.To = n.To
     let IsIntersecting (x:Node<'a, _>) (n:Node<'a, _>) = (x.From < n.From && n.From < x.To) || (x.From < n.To && n.To < x.To)        
 
@@ -22,7 +23,11 @@
         else {From=least a.From b.From; To = greatest a.To b.To; Values = []; ChildNodes = [a;b]}
 
     let FindChildNodeWithInterval (p:Node<'a,'v>) (s:'a, e:'a) =
-        Some p
+        List.tryFind (fun c -> (s,e)|>IsWithin c) p.ChildNodes
+
+    let NodeWithChildSwapped (p:Node<'a,'v>) (o:Node<'a,'v>) (n:Node<'a,'v>) =
+        let newChilds = List.fold (fun r c -> if c = o then n::r else c::r) [] p.ChildNodes 
+        {From =p.From; To=p.To; Values=p.Values; ChildNodes=newChilds}
 
     let rec NodeWithValueRemoved (n:Node<'a,'v>) (s:'a, e:'a) (v:'v) =
         match (n.From, n.To) with
@@ -32,8 +37,12 @@
             |_-> 
                 let tn = FindChildNodeWithInterval n (s,e)
                 match tn with
-                    | Some candidate -> NodeWithValueRemoved n (s,e) v
-                    | None -> n
+                    | Some candidate ->   
+                        let r = NodeWithValueRemoved candidate (s,e) v                        
+                        let sw = NodeWithChildSwapped n candidate r
+                        sw
+                    | None -> 
+                        n
             
 
     type Tree<'a , 'v when 'a : comparison>(r : Option<Node<'a,'v>>) =
@@ -59,4 +68,6 @@
     let TreeWithValueRemoved (t:Tree<'a,'v>) (s:'a, e:'a) (v:'v) =
         match t.RootNode with
             | None -> t
-            | Some r -> Tree(Some (NodeWithValueRemoved r (s,e) v))
+            | Some r -> 
+                let newRoot = NodeWithValueRemoved r (s,e) v
+                Tree(Some (newRoot))

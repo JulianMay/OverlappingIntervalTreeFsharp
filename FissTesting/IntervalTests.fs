@@ -117,11 +117,27 @@ module IntervalTests =
 
     [<Test>]
     let ``tree is structurally untouched when a removed value was not the last``() =
-        let existing = nn(dt(2017,3,10), dt(2017,3,15), ["t"], 
+        let existing = nn(dt(2017,3,9), dt(2017,3,15), ["t"], 
                             [nn(dt(2017,3,10),dt(2017,3,11), ["one";"two";"three"], noChildren)])
         let before = Tree(Some existing)
 
         let sut = TreeWithValueRemoved before (dt(2017,3,10),dt(2017,3,11)) "two"
 
-        Assert.AreEqual(["one", "three"],sut.RootNode.Value.ChildNodes.Head.Values)
+        Assert.That(sut.RootNode.IsSome);
+        Assert.That(sut.RootNode.Value.ChildNodes.Length, Is.EqualTo(1));
+        Assert.AreEqual(["one"; "three"],sut.RootNode.Value.ChildNodes.Head.Values)
+
+    [<Test>]
+    let ``tree reorganizes when nodes with one childnode become value-empty``() =
+        let existing = nn(dt(2017,3,9), dt(2017,3,15), ["t"], 
+                            [nn(dt(2017,3,10),dt(2017,3,14), ["two"],  //<- This level is removed when the value "two" is removed
+                                [nn(dt(2017,3,11),dt(2017,3,11), ["x"], noChildren)])])
+        let before = Tree(Some existing)
+
+        let sut = TreeWithValueRemoved before (dt(2017,3,10),dt(2017,3,14)) "two"
+        Assert.That(sut.RootNode.IsSome);
+        Assert.That(sut.RootNode.Value.ChildNodes.Length, Is.EqualTo(1));
+        Assert.That(sut.RootNode.Value.ChildNodes.Head.ChildNodes.Length, Is.EqualTo(0));
+        Assert.AreEqual(["x"],sut.RootNode.Value.ChildNodes.Head.Values)
+
 

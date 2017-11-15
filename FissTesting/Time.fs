@@ -6,6 +6,7 @@ module Time
         member x.Month = m
         member x.Day = d
 
+        override x.ToString() = sprintf "%i/%i/%i" x.Year x.Month x.Day
         override x.GetHashCode() = hash (x.Year, x.Month, x.Day)
         override x.Equals y = 
             match y with
