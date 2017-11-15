@@ -8,7 +8,7 @@
     let rec CountChildNodes (n: Node<'a,'v>) : int =
         n.ChildNodes 
             |> List.map (fun c -> if c.ChildNodes.Length = 0 then 1 else 1 + CountChildNodes c)
-            |> List.sum 
+            |> List.sum
 
     let least a b = if a < b then a else b
     let greatest a b = if a > b then a else b   
@@ -21,6 +21,20 @@
         else if (IsWithinPeriodOf b a) then { a with ChildNodes = b::a.ChildNodes}
         else {From=least a.From b.From; To = greatest a.To b.To; Values = []; ChildNodes = [a;b]}
 
+    let FindChildNodeWithInterval (p:Node<'a,'v>) (s:'a, e:'a) =
+        Some p
+
+    let rec NodeWithValueRemoved (n:Node<'a,'v>) (s:'a, e:'a) (v:'v) =
+        match (n.From, n.To) with
+            |(f,t) when ((f,t)=(s,e))  -> 
+                let nv = List.filter (fun x -> not(x=v)) n.Values
+                {From =s; To=e; Values=nv; ChildNodes=n.ChildNodes}
+            |_-> 
+                let tn = FindChildNodeWithInterval n (s,e)
+                match tn with
+                    | Some candidate -> NodeWithValueRemoved n (s,e) v
+                    | None -> n
+            
 
     type Tree<'a , 'v when 'a : comparison>(r : Option<Node<'a,'v>>) =
         do if (r.IsSome && not(ValidateNodeInterval r.Value)) 
@@ -34,11 +48,15 @@
                 | None -> 0
 
     let TreeWithNodeAdded (t:Tree<'a,'v>) (n:Node<'a,'v>) = 
-        if not(ValidateNodeInterval n) 
-            then invalidArg "r" "'From' must be earlier than 'To'"
+        if not(ValidateNodeInterval n) then
+            invalidArg "r" "'From' must be earlier than 'To'"
         if t.RootNode.IsNone then 
-            Tree(Some n)
+            Tree(Some n) 
         else 
             let newRoot = Compound t.RootNode.Value n
             Tree(Some newRoot)
             
+    let TreeWithValueRemoved (t:Tree<'a,'v>) (s:'a, e:'a) (v:'v) =
+        match t.RootNode with
+            | None -> t
+            | Some r -> Tree(Some (NodeWithValueRemoved r (s,e) v))

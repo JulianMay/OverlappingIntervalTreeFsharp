@@ -114,3 +114,14 @@ module IntervalTests =
         CollectionAssert.AreEqual(["new"], r.Values)
         Assert.AreEqual(1, r.ChildNodes.Length)
         Assert.AreEqual(existing, r.ChildNodes.Head)
+
+    [<Test>]
+    let ``tree is structurally untouched when a removed value was not the last``() =
+        let existing = nn(dt(2017,3,10), dt(2017,3,15), ["t"], 
+                            [nn(dt(2017,3,10),dt(2017,3,11), ["one";"two";"three"], noChildren)])
+        let before = Tree(Some existing)
+
+        let sut = TreeWithValueRemoved before (dt(2017,3,10),dt(2017,3,11)) "two"
+
+        Assert.AreEqual(["one", "three"],sut.RootNode.Value.ChildNodes.Head.Values)
+
